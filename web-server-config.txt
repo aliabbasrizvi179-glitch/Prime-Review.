@@ -1,0 +1,44 @@
+server {
+    listen 80;
+    server_name _;
+    root /var/www/html;
+    index index.php;
+
+    # Security headers
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
+
+    # Logging
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    # Handle all requests through index.php
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    # Protect sensitive files
+    location ~ /(users\.json|error\.log|composer\.(json|lock))$ {
+        deny all;
+        return 404;
+    }
+
+    # PHP handling
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PHP_VALUE "error_log=/var/www/html/error.log";
+        fastcgi_buffers 16 16k;
+        fastcgi_buffer_size 32k;
+    }
+
+    # Disable access to hidden files
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "users": [],
+    "brands": [],
+    "campaigns": [],
+    "reviews": [],
+    "wallet": [],
+    "admin": {
+        "id": "123456789"
+    },
+    "settings": {
+        "coin_value_inr": 1
+    }
+}
