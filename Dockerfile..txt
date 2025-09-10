@@ -1,10 +1,7 @@
-# Use an official PHP runtime with Apache
-FROM php:8.2-apache
+# Use PHP-FPM with Nginx
+FROM php:8.2-fpm-bullseye as php
 
-# Set working directory
-WORKDIR /var/www/html
-
-# Install necessary packages
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -12,28 +9,35 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install zip
 
 # Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.6 /usr/bin/composer /usr/bin/composer
+
+# Set working directory
+WORKDIR /var/www/html
 
 # Copy application files
 COPY . .
 
 # Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Set proper permissions
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod 755 /var/www/html \
-    && chmod 644 users.json \
-    && chmod 666 error.log
+RUN chmod 755 /var/www/html && \
+    touch users.json error.log && \
+    chmod 644 users.json && \
+    chmod 666 error.log && \
+    chown -R www-data:www-data /var/www/html
 
-# Enable Apache rewrite module
-RUN a2enmod rewrite
+# Nginx stage
+FROM nginx:1.23-alpine as webserver
 
-# Copy custom Apache configuration
-COPY ./web-server-config/000-default.conf /etc/apache2/sites-available/000-default.conf
+# Copy custom nginx config
+COPY ./web-server-config/nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose port 80
-EXPOSE 80
+# Copy PHP files from the PHP stage
+COPY --from=php /var/www/html /var/www/html
 
-# Start Apache in foreground
-CMD ["apache2-foreground"]
+# Expose port (Render will use PORT environment variable)
+EXPOSE 8080
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
